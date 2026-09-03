@@ -1,0 +1,112 @@
+{
+  "users": [
+    {
+      "username": "5",
+      "passwordHash": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+      "progress": {
+        "completedQuizzes": [
+          "math-jk-quiz-1",
+          "math-grade-4-quiz-1",
+          "math-grade-4-quiz-2",
+          "math-grade-2-quiz-1",
+          "math-grade-3-quiz-1",
+          "math-jk-quiz-2",
+          "math-grade-4-quiz-3",
+          "math-grade-12-quiz-1"
+        ],
+        "quizStars": {
+          "math-jk-quiz-1": 3,
+          "math-grade-4-quiz-1": 3,
+          "math-grade-4-quiz-2": 3,
+          "math-grade-2-quiz-1": 3,
+          "math-grade-3-quiz-1": 3,
+          "math-jk-quiz-2": 3,
+          "math-grade-4-quiz-3": 3,
+          "math-grade-12-quiz-1": 3
+        }
+      },
+      "subscription": {
+        "isActive": true,
+        "plan": "ai-teacher-pro",
+        "amountUsdPerMonth": 10,
+        "startedAt": "2026-02-21T18:11:11.028Z",
+        "renewsAt": "2026-03-23T17:11:11.028Z"
+      }
+    },
+    {
+      "username": "reyaansharora26",
+      "passwordHash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+      "progress": {
+        "completedQuizzes": [
+          "math-grade-4-quiz-1"
+        ],
+        "quizStars": {
+          "math-grade-4-quiz-1": 3
+        }
+      },
+      "subscription": {
+        "isActive": false,
+        "plan": "ai-teacher-pro",
+        "amountUsdPerMonth": 10,
+        "startedAt": null,
+        "renewsAt": null
+      }
+    },
+    {
+      "username": "r",
+      "passwordHash": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+      "progress": {
+        "completedQuizzes": [
+          "math-grade-4-quiz-1",
+          "math-grade-4-quiz-2",
+          "math-grade-4-quiz-3",
+          "math-jk-quiz-1",
+          "math-grade-12-quiz-22"
+        ],
+        "quizStars": {
+          "math-grade-4-quiz-1": 3,
+          "math-grade-4-quiz-2": 3,
+          "math-grade-4-quiz-3": 3,
+          "math-jk-quiz-1": 3,
+          "math-grade-12-quiz-22": 3
+        }
+      },
+      "subscription": {
+        "isActive": false,
+        "plan": "ai-teacher-pro",
+        "amountUsdPerMonth": 10,
+        "startedAt": null,
+        "renewsAt": null
+      }
+    },
+    {
+      "username": "poop",
+      "email": "reyaansharora2016@gmail.com",
+      "passwordHash": "083ecd6a09e943ee420f9675047b93afc4f5dcd4fc4cfec3b0ce08e618d6b498",
+      "progress": {
+        "completedQuizzes": [
+          "math-jk-quiz-1"
+        ],
+        "quizStars": {
+          "math-jk-quiz-1": 3
+        }
+      },
+      "subscription": {
+        "isActive": false,
+        "plan": "ai-teacher-pro",
+        "amountUsdPerMonth": 10,
+        "startedAt": null,
+        "renewsAt": null
+      }
+    }
+  ],
+  "reviews": [
+    {
+      "id": "b261acc5-1c92-4dc3-95fd-4463d3d0b4b8",
+      "username": "poop",
+      "rating": 5,
+      "message": "it helped me learn fractions",
+      "createdAt": "2026-09-03T17:00:31.945Z"
+    }
+  ]
+}
