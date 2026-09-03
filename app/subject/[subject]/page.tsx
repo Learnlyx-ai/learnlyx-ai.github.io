@@ -11,6 +11,12 @@ interface SubjectPageProps {
   params: Promise<{ subject: string }>;
 }
 
+export function generateStaticParams() {
+  return subjects.map((subject) => ({ subject: subject.id }));
+}
+
+export const dynamicParams = false;
+
 // Map subject IDs to their icons
 const iconMap = {
   math: Calculator,

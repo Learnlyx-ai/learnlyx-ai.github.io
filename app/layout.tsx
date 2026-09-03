@@ -11,13 +11,13 @@ export const metadata: Metadata = {
 
   icons: {
     // Browser tab icon
-    icon: "/learnlyx.png",
+    icon: "/Learnlyx.png",
 
     // Apple / iOS home screen icon
-    apple: "/learnlyx.png",
+    apple: "/Learnlyx.png",
 
     // Optional: shortcut icon
-    shortcut: "/learnlyx.png",
+    shortcut: "/Learnlyx.png",
   },
 };
 

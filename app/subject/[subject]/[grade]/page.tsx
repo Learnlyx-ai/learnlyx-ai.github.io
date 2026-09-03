@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Calculator, BookOpen, FlaskConical } from "lucide-react";
 import { subjects } from "@/data/subjects";
-import { getGradeName } from "@/data/grades";
+import { getGradeName, grades } from "@/data/grades";
 import { getSkillsForGrade } from "@/data/quizzes";
 import GradeSkillsList from "./GradeSkillsList";
 
@@ -11,6 +11,14 @@ import GradeSkillsList from "./GradeSkillsList";
 interface GradePageProps {
   params: Promise<{ subject: string; grade: string }>;
 }
+
+export function generateStaticParams() {
+  return subjects.flatMap((subject) =>
+    grades.map((grade) => ({ subject: subject.id, grade: grade.id }))
+  );
+}
+
+export const dynamicParams = false;
 
 // Map subject IDs to their icons
 const iconMap = {

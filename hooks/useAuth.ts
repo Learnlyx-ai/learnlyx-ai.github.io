@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createClientSupabaseBrowser } from "@/lib/supabase/client";
 
 interface AuthState {
   username: string | null;
@@ -26,20 +27,31 @@ export function useAuth() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   const refreshAuth = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/session", { method: "GET" });
-      if (!res.ok) {
-        setAuth({ username: null, isAuthenticated: false });
-        return;
-      }
-      const data = await res.json();
-      setAuth({
-        username: data?.username ?? null,
-        isAuthenticated: Boolean(data?.isAuthenticated),
-      });
-    } catch {
+    const supabase = createClientSupabaseBrowser();
+    if (!supabase) {
       setAuth({ username: null, isAuthenticated: false });
+      return;
     }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setAuth({ username: null, isAuthenticated: false });
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    setAuth({
+      username: profile?.username ?? user.user_metadata?.username ?? user.email ?? null,
+      isAuthenticated: true,
+    });
   }, []);
 
   useEffect(() => {
@@ -56,52 +68,73 @@ export function useAuth() {
     };
   }, [refreshAuth]);
 
+  useEffect(() => {
+    const supabase = createClientSupabaseBrowser();
+    if (!supabase) return;
+
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      window.setTimeout(() => void refreshAuth(), 0);
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, [refreshAuth]);
+
   const signUp = useCallback(async (username: string, email: string, password: string): Promise<AuthResult> => {
-    try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        return { ok: false, message: data?.message ?? "Could not create account." };
-      }
-      await refreshAuth();
-      emitAuthChanged();
-      return { ok: true, message: data?.message ?? "Account created." };
-    } catch {
-      return { ok: false, message: "Network error while signing up." };
+    const normalizedUsername = username.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedUsername || !normalizedEmail || !password) {
+      return { ok: false, message: "Username, email, and password are required." };
     }
+
+    const supabase = createClientSupabaseBrowser();
+    if (!supabase) {
+      return { ok: false, message: "Account sign-up is not configured yet." };
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: { data: { username: normalizedUsername } },
+    });
+
+    if (error) {
+      return { ok: false, message: error.message };
+    }
+
+    await refreshAuth();
+    emitAuthChanged();
+    return {
+      ok: true,
+      message: data.session ? "Account created." : "Account created. Check your email to confirm it.",
+    };
   }, [refreshAuth]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
-    try {
-      const res = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        return { ok: false, message: data?.message ?? "Could not sign in." };
-      }
-      await refreshAuth();
-      emitAuthChanged();
-      return { ok: true, message: data?.message ?? "Signed in successfully." };
-    } catch {
-      return { ok: false, message: "Network error while signing in." };
+    const supabase = createClientSupabaseBrowser();
+    if (!supabase) {
+      return { ok: false, message: "Account sign-in is not configured yet." };
     }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) {
+      return { ok: false, message: error.message };
+    }
+
+    await refreshAuth();
+    emitAuthChanged();
+    return { ok: true, message: "Signed in successfully." };
   }, [refreshAuth]);
 
   const signOut = useCallback(async () => {
-    try {
-      await fetch("/api/auth/signout", { method: "POST" });
-    } finally {
-      await refreshAuth();
-      emitAuthChanged();
-    }
-  }, [refreshAuth]);
+    const supabase = createClientSupabaseBrowser();
+    if (supabase) await supabase.auth.signOut();
+    setAuth({ username: null, isAuthenticated: false });
+    emitAuthChanged();
+  }, []);
 
   return {
     ...auth,

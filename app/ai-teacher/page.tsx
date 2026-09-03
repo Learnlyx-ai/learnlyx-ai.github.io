@@ -3,27 +3,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
+import { buildDailyLesson, type LessonPayload } from "@/lib/teacherLesson";
 
 type Stage = "ask_name" | "ask_grade" | "lesson";
 
 interface ChatMessage {
   role: "teacher" | "student";
   text: string;
-}
-
-interface LessonQuestion {
-  id: string;
-  prompt: string;
-  answer: string;
-}
-
-interface LessonPayload {
-  date: string;
-  topic: string;
-  oneTopicPerDay: boolean;
-  steps: string[];
-  examples: Array<{ equation: string; answer: string }>;
-  questions: LessonQuestion[];
 }
 
 function normalizeGradeInput(input: string): string | null {
@@ -85,17 +71,12 @@ export default function AITeacherPage() {
     teacherSay(intro);
   }, [isLoaded, isAuthenticated]);
 
-  const loadLessonForGrade = async (gradeId: string) => {
+  const loadLessonForGrade = (gradeId: string) => {
     setIsBusy(true);
     setStatus("");
     try {
-      const res = await fetch(`/api/teacher/daily?grade=${gradeId}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setStatus(data?.message ?? "Could not load today's lesson.");
-        return;
-      }
-      setLesson(data as LessonPayload);
+      const data = buildDailyLesson(gradeId);
+      setLesson(data);
       setAnswers({});
       setScore(null);
       setStage("lesson");
@@ -104,7 +85,7 @@ export default function AITeacherPage() {
           `This is your only topic for today.`
       );
     } catch {
-      setStatus("Network error while loading lesson.");
+      setStatus("Could not prepare today's lesson.");
     } finally {
       setIsBusy(false);
     }
@@ -132,7 +113,7 @@ export default function AITeacherPage() {
         teacherSay("Please enter grade as JK, Kindergarten, or Grade 1 to Grade 12.");
         return;
       }
-      await loadLessonForGrade(gradeId);
+      loadLessonForGrade(gradeId);
     }
   };
 
@@ -308,4 +289,3 @@ export default function AITeacherPage() {
     </main>
   );
 }
-

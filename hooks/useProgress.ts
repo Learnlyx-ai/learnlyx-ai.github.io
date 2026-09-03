@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AUTH_CHANGED_EVENT } from "@/hooks/useAuth";
+import { createClientSupabaseBrowser } from "@/lib/supabase/client";
 
 interface Progress {
   completedQuizzes: string[];
@@ -15,6 +16,20 @@ const defaultProgress: Progress = {
 
 const GUEST_STORAGE_KEY = "smart-learning-progress:guest";
 
+function normalizeProgress(value: unknown): Progress {
+  if (!value || typeof value !== "object") return defaultProgress;
+  const candidate = value as Partial<Progress>;
+  return {
+    completedQuizzes: Array.isArray(candidate.completedQuizzes)
+      ? candidate.completedQuizzes.filter((id): id is string => typeof id === "string")
+      : [],
+    quizStars:
+      candidate.quizStars && typeof candidate.quizStars === "object"
+        ? candidate.quizStars
+        : {},
+  };
+}
+
 export function useProgress() {
   const [progress, setProgress] = useState<Progress>(defaultProgress);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -25,7 +40,7 @@ export function useProgress() {
     try {
       const saved = localStorage.getItem(GUEST_STORAGE_KEY);
       if (saved) {
-        setProgress(JSON.parse(saved));
+        setProgress(normalizeProgress(JSON.parse(saved)));
       } else {
         setProgress(defaultProgress);
       }
@@ -40,26 +55,32 @@ export function useProgress() {
     setProgress(defaultProgress);
 
     try {
-      const sessionRes = await fetch("/api/auth/session");
-      const session = await sessionRes.json().catch(() => ({}));
-      const loggedIn = Boolean(session?.isAuthenticated);
-      if (requestId !== loadRequestId.current) return;
-      setIsAuthenticated(loggedIn);
-
-      if (!loggedIn) {
+      const supabase = createClientSupabaseBrowser();
+      if (!supabase) {
+        setIsAuthenticated(false);
         loadGuestProgress();
         return;
       }
 
-      const res = await fetch("/api/progress");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const loggedIn = Boolean(user);
       if (requestId !== loadRequestId.current) return;
-      if (!res.ok) {
-        setProgress(defaultProgress);
+      setIsAuthenticated(loggedIn);
+
+      if (!user) {
+        loadGuestProgress();
         return;
       }
-      const data = await res.json();
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("progress")
+        .eq("id", user.id)
+        .maybeSingle();
       if (requestId !== loadRequestId.current) return;
-      setProgress(data?.progress ?? defaultProgress);
+      setProgress(normalizeProgress(data?.progress));
     } catch {
       if (requestId !== loadRequestId.current) return;
       setIsAuthenticated(false);
@@ -93,35 +114,32 @@ export function useProgress() {
   const completeQuiz = useCallback(
     (quizId: string, stars: number) => {
       const safeStars = Math.max(1, Math.min(3, stars));
-      setProgress((prev) => {
-        const existingStars = prev.quizStars[quizId] || 0;
-        const newStars = Math.max(existingStars, safeStars);
-        return {
-          completedQuizzes: prev.completedQuizzes.includes(quizId)
-            ? prev.completedQuizzes
-            : [...prev.completedQuizzes, quizId],
-          quizStars: {
-            ...prev.quizStars,
-            [quizId]: newStars,
-          },
-        };
-      });
+      const existingStars = progress.quizStars[quizId] || 0;
+      const nextProgress = {
+        completedQuizzes: progress.completedQuizzes.includes(quizId)
+          ? progress.completedQuizzes
+          : [...progress.completedQuizzes, quizId],
+        quizStars: {
+          ...progress.quizStars,
+          [quizId]: Math.max(existingStars, safeStars),
+        },
+      };
+      setProgress(nextProgress);
 
       if (isAuthenticated) {
-        void fetch("/api/progress", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quizId, stars: safeStars }),
-        }).then(async (res) => {
-          if (!res.ok) return;
-          const data = await res.json().catch(() => ({}));
-          if (data?.progress) {
-            setProgress(data.progress);
-          }
-        });
+        const supabase = createClientSupabaseBrowser();
+        if (supabase) {
+          void supabase.auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            return supabase
+              .from("profiles")
+              .update({ progress: nextProgress })
+              .eq("id", data.user.id);
+          });
+        }
       }
     },
-    [isAuthenticated]
+    [isAuthenticated, progress]
   );
 
   const getStars = useCallback(
@@ -141,7 +159,16 @@ export function useProgress() {
   const resetProgress = useCallback(() => {
     setProgress(defaultProgress);
     if (isAuthenticated) {
-      void fetch("/api/progress", { method: "DELETE" });
+      const supabase = createClientSupabaseBrowser();
+      if (supabase) {
+        void supabase.auth.getUser().then(({ data }) => {
+          if (!data.user) return;
+          return supabase
+            .from("profiles")
+            .update({ progress: defaultProgress })
+            .eq("id", data.user.id);
+        });
+      }
     }
   }, [isAuthenticated]);
 

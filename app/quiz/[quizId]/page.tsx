@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getQuizById } from "@/data/quizzes";
+import { getQuizById, quizzes } from "@/data/quizzes";
 import { subjects } from "@/data/subjects";
 import { getGradeName } from "@/data/grades";
 import QuizClient from "./QuizClient";
@@ -11,6 +11,12 @@ import QuizClient from "./QuizClient";
 interface QuizPageProps {
   params: Promise<{ quizId: string }>;
 }
+
+export function generateStaticParams() {
+  return quizzes.map((quiz) => ({ quizId: quiz.id }));
+}
+
+export const dynamicParams = false;
 
 export default async function QuizPage({ params }: QuizPageProps) {
   // Await the params (Next.js 16)

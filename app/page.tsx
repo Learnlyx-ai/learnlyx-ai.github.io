@@ -11,7 +11,6 @@ import {
   ChevronRight,
   CircleHelp,
   ClipboardCheck,
-  Clock3,
   GraduationCap,
   Heart,
   Lightbulb,
@@ -26,6 +25,7 @@ import {
 } from "lucide-react";
 import { subjects } from "@/data/subjects";
 import SubjectCard from "@/components/SubjectCard";
+import { createClientSupabaseBrowser } from "@/lib/supabase/client";
 
 interface LearnerReview {
   id: string;
@@ -77,7 +77,7 @@ export default function HomePage() {
   const [users, setUsers] = useState(0);
   const [rating, setRating] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);
-  const [reviews, setReviews] = useState<LearnerReview[]>([]);
+  const [reviews, setReviews] = useState<LearnerReview[]>(demoReviews);
   const [reviewMessage, setReviewMessage] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewStatus, setReviewStatus] = useState("");
@@ -106,15 +106,29 @@ export default function HomePage() {
   }, [hasAnimated]);
 
   useEffect(() => {
-    fetch("/api/reviews")
-      .then((response) => response.json())
-      .then((data) => {
-        const liveReviews = data.reviews ?? [];
+    const supabase = createClientSupabaseBrowser();
+    if (!supabase) return;
+
+    void supabase
+      .from("reviews")
+      .select("id, username, rating, message, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (error) {
+          setReviews(demoReviews);
+          setReviewStatus("Showing sample reviews while live reviews are unavailable.");
+          return;
+        }
+
+        const liveReviews: LearnerReview[] = (data ?? []).map((review) => ({
+          id: review.id,
+          username: review.username,
+          rating: review.rating,
+          message: review.message,
+          createdAt: review.created_at,
+        }));
         setReviews([...liveReviews, ...demoReviews]);
-      })
-      .catch(() => {
-        setReviews(demoReviews);
-        setReviewStatus("Showing sample reviews while live reviews are unavailable.");
       });
   }, []);
 
@@ -123,17 +137,51 @@ export default function HomePage() {
     setIsSubmittingReview(true);
     setReviewStatus("");
     try {
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating: reviewRating, message: reviewMessage }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setReviewStatus(data.message ?? "Your review could not be posted.");
+      const message = reviewMessage.trim().replace(/\s+/g, " ");
+      if (message.length < 3 || message.length > 500) {
+        setReviewStatus("Use a review between 3 and 500 characters.");
         return;
       }
-      setReviews((current) => [data.review, ...current]);
+
+      const supabase = createClientSupabaseBrowser();
+      if (!supabase) {
+        setReviewStatus("Reviews are not configured yet.");
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setReviewStatus("Please sign in before posting a review.");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .maybeSingle();
+      const username = profile?.username ?? user.user_metadata?.username ?? user.email ?? "learner";
+      const { data, error } = await supabase
+        .from("reviews")
+        .insert({ user_id: user.id, username, rating: reviewRating, message })
+        .select("id, username, rating, message, created_at")
+        .single();
+
+      if (error || !data) {
+        setReviewStatus(error?.message ?? "Your review could not be posted.");
+        return;
+      }
+
+      const review: LearnerReview = {
+        id: data.id,
+        username: data.username,
+        rating: data.rating,
+        message: data.message,
+        createdAt: data.created_at,
+      };
+      setReviews((current) => [review, ...current]);
       setReviewMessage("");
       setReviewRating(5);
       setReviewStatus("Thanks — your review is now visible to other learners.");
